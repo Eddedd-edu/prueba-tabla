@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>PerioQuest: Exploración y Adivinanzas</title>
+  <style>
+    :root {
+      --bg-color:#1a1b26; --panel-bg:#24283b; --text-color:#c0caf5;
+      --correct:#73daca; --error:#f7768e; --warning:#ff9e64;
+      --btn-bg:#414868; --btn-hover:#565f89; --accent:#7aa2f7;
+
+      /* Categorías */
+      --cat-alkali:#f7768e; --cat-alkaline:#ff9e64; --cat-transition:#e0af68;
+      --cat-post:#a9b1d6; --cat-metalloid:#9ece6a; --cat-nonmetal:#73daca;
+      --cat-halogen:#7dcfff; --cat-noble:#bb9af7; --cat-lanthanide:#b4f9f8;
+      --cat-actinide:#9d7cd8; --cat-unknown:#565f89;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background:var(--bg-color); color:var(--text-color);
+      margin:0; padding:15px; display:flex; flex-direction:column; align-items:center;
+    }
+
+    header { text-align:center; width:100%; max-width:1400px; margin-bottom: 12px; }
+    h1 { margin:0 0 5px 0; color:var(--accent); font-size:2rem; }
+
+    #main-section { display:flex; width:100%; max-width:1400px; gap:15px; justify-content:center; align-items:stretch; flex-wrap:wrap; }
+    .panel { background:var(--panel-bg); padding:15px; border-radius:12px; flex:1; box-shadow:0 4px 10px rgba(0,0,0,.2); }
+    .left-panel { flex: 2.5; min-width:800px; overflow-x:auto; }
+    .right-panel { flex: 1; min-width:320px; display:flex; flex-direction:column; }
+
+    /* Controles superiores en izquierda */
+    .top-controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+    .txt, .sel, .btn {
+      background:#14151f; color:#c0caf5; border:1px solid #3b4261; border-radius:8px; padding:8px 10px;
+    }
+    .btn { cursor:pointer; font-weight:700; }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:active { transform: scale(0.96); }
+
+    /* Tabla Periódica */
+    .pt-grid { display:grid; grid-template-columns: 20px repeat(18, minmax(35px, 1fr)); gap:4px; min-width:800px; margin-bottom:15px; }
+    .grid-label { display:flex; justify-content:center; align-items:center; font-weight:700; color:var(--accent); font-size:0.85rem; opacity:.8; }
+    .element-cell {
+      background:#1a1b26; border:2px solid #414868; border-radius:6px;
+      padding:2px; text-align:center; cursor:pointer; transition: all .2s;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      aspect-ratio:1; position:relative;
+    }
+    .element-cell:hover { transform: scale(1.15); z-index:10; border-color:var(--text-color); }
+    .element-cell.selected { border-color: var(--correct); box-shadow:0 0 15px rgba(115,218,202,.4); transform: scale(1.15); z-index:10; }
+    .el-z { font-size:0.65rem; position:absolute; top:2px; left:3px; opacity:.7; }
+    .el-sy { font-size:1.2rem; font-weight:800; margin-top:5px; color:var(--text-color); }
+
+    /* Colores por categoría */
+    .cat-alkali{border-bottom:3px solid var(--cat-alkali);} .cat-alkaline{border-bottom:3px solid var(--cat-alkaline);}
+    .cat-transition{border-bottom:3px solid var(--cat-transition);} .cat-post{border-bottom:3px solid var(--cat-post);}
+    .cat-metalloid{border-bottom:3px solid var(--cat-metalloid);} .cat-nonmetal{border-bottom:3px solid var(--cat-nonmetal);}
+    .cat-halogen{border-bottom:3px solid var(--cat-halogen);} .cat-noble{border-bottom:3px solid var(--cat-noble);}
+    .cat-lanthanide{border-bottom:3px solid var(--cat-lanthanide);} .cat-actinide{border-bottom:3px solid var(--cat-actinide);}
+    .cat-unknown{border-bottom:3px solid var(--cat-unknown);}
+
+    /* Leyenda */
+    .legend { font-size:.75rem; text-align:center; color:var(--accent); margin-top:12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+
+    /* Tabs derecha */
+    .tabs { display:flex; gap:10px; margin-bottom:15px; }
+    .tabs button { flex:1; background:var(--btn-bg); color:var(--text-color); border:none; padding:10px; border-radius:8px; font-weight:700; cursor:pointer; transition:.2s; }
+    .tabs button.active { background:var(--accent); color:#1a1b26; }
+
+    /* Vista Info */
+    #view-info { display:flex; flex-direction:column; align-items:center; width:100%; }
+    #info-header { text-align:center; margin-bottom:12px; width:100%; }
+    #info-name { font-size:2rem; color:var(--warning); margin:0 0 5px 0; text-transform:uppercase; letter-spacing:1px; font-weight:900; }
+    #info-sub { background:#1a1b26; padding:6px 14px; border-radius:16px; border:1px solid #414868; font-size:0.9rem; font-weight:700; }
+
+    .props-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; width:100%; margin-bottom:12px; }
+    .prop-item { background:#1a1b26; padding:8px; border-radius:8px; border:1px solid #414868; display:flex; flex-direction:column; text-align:center; }
+    .prop-item small { color:var(--text-color); opacity:.6; font-size:0.7rem; text-transform:uppercase; }
+    .prop-item span { color:var(--correct); font-weight:800; font-size:1rem; margin-top:3px; }
+    .prop-item.full { grid-column: span 2; }
+
+    .canvases { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; width:100%; }
+    canvas { background:#14151f; border-radius:12px; border:4px solid #3b4261; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+
+    /* Vista Adivinanzas */
+    #view-riddles { display:none; flex-direction:column; align-items:center; width:100%; text-align:center; }
+    .riddle-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:8px; }
+    .riddle-box { background:#1a1b26; padding:16px; border-radius:12px; border:2px dashed var(--accent); width:100%; margin-bottom:10px; }
+    .riddle-text { font-size:1.05rem; font-style:italic; color:var(--text-color); margin-bottom:10px; line-height:1.5; }
+    .riddle-feedback { font-size:1rem; font-weight:800; min-height:28px; margin:6px 0; }
+    .btn-action { background: var(--accent); color:#1a1b26; border:none; padding:8px 16px; border-radius:8px; font-weight:800; cursor:pointer; }
+    .hud { opacity:.9; }
+
+    /* Feedback visual acierto/error */
+    .feedback-overlay { position:fixed; inset:0; background:transparent; pointer-events:none; opacity:0; transition: opacity .25s ease; z-index: 9999; }
+    .feedback-overlay.show.ok { background: rgba(46,204,113,0.15); opacity: 1; }
+    .feedback-overlay.show.bad { background: rgba(231,76,60,0.15); opacity: 1; }
+
+    @media (max-width: 1000px) { .left-panel { min-width:100%; } }
+    @media (max-width: 900px) { .props-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PerioQuest San José</h1>
+    <p style="margin:0; opacity:.8;">Tabla Periódica Interactiva (118 Elementos)</p>
+  </header>
+
+  <!-- Overlay de feedback verde/rojo -->
+  <div id="feedbackOverlay" class="feedback-overlay" aria-hidden="true"></div>
+
+  <div id="main-section">
+    <!-- IZQUIERDA -->
+    <div class="panel left-panel">
+      <!-- Controles: búsqueda, filtro, mapa de calor -->
+      <div class="top-controls">
+        <input id="searchEl" class="txt" placeholder="Buscar: símbolo o nombre…"/>
+        <select id="filterCat" class="sel">
+          <option value="all">Todas las categorías</option>
+          <option value="alkali">Alcalinos</option>
+          <option value="alkaline">Alcalinotérreos</option>
+          <option value="transition">Transición</option>
+          <option value="post">Post-Transición</option>
+          <option value="metalloid">Metaloides</option>
+          <option value="nonmetal">No Metales</option>
+          <option value="halogen">Halógenos</option>
+          <option value="noble">Gases Nobles</option>
+          <option value="lanthanide">Lantánidos</option>
+          <option value="actinide">Actínidos</option>
+        </select>
+        <button class="btn" onclick="heatmap('en')">Mapa EN</button>
+        <button class="btn" onclick="heatmap('r')">Mapa Radio</button>
+        <button class="btn" onclick="heatmap('ie')">Mapa EI</button>
+        <button class="btn" onclick="heatmap(null)">Sin mapa</button>
+      </div>
+
+      <div class="pt-grid" id="pt-grid"></div>
+
+      <div class="legend">
+        <span style="color:var(--cat-alkali)">● Alcalinos</span>
+        <span style="color:var(--cat-alkaline)">● Alcalinotérreos</span>
+        <span style="color:var(--cat-transition)">● Transición</span>
+        <span style="color:var(--cat-post)">● Post-Transición</span>
+        <span style="color:var(--cat-metalloid)">● Metaloides</span>
+        <span style="color:var(--cat-nonmetal)">● No Metales</span>
+        <span style="color:var(--cat-halogen)">● Halógenos</span>
+        <span style="color:var(--cat-noble)">● Gases Nobles</span>
+        <span style="color:var(--cat-lanthanide)">● Lantánidos</span>
+        <span style="color:var(--cat-actinide)">● Actínidos</span>
+      </div>
+    </div>
+
+    <!-- DERECHA -->
+    <div class="panel right-panel">
+      <div class="tabs">
+        <button id="tab-info" class="active" onclick="setMode('info')">⚛️ Info</button>
+        <button id="tab-riddles" onclick="setMode('riddles')">❓ Adivinanzas</button>
+      </div>
+
+      <!-- INFO -->
+      <div id="view-info">
+        <div id="info-header">
+          <h2 id="info-name">Hidrógeno</h2>
+          <span id="info-sub">Z: 1 | H | G: 1 | P: 1</span>
+        </div>
+
+        <div class="props-grid">
+          <div class="prop-item"><small title="Masa atómica promedio">Peso Atómico</small><span id="p-aw">N/D</span></div>
+          <div class="prop-item"><small title="Tendencia: ↑ de izquierda a derecha; ↑ de abajo hacia arriba.">Electronegatividad</small><span id="p-en">2.20</span></div>
+          <div class="prop-item full"><small>Configuración electrónica (abreviada)</small><span id="p-ec" style="color:var(--warning)">N/D</span></div>
+          <div class="prop-item full"><small>Estados de oxidación</small><span id="p-os" style="color:var(--accent)">N/D</span></div>
+
+          <div class="prop-item"><small>Electrones de valencia</small><span id="p-ve">1</span></div>
+          <div class="prop-item"><small>Conf. de valencia (ns / np)</small><span id="p-vconf">1s<sup>1</sup></span></div>
+        </div>
+
+        <div class="canvases">
+          <div style="text-align:center;">
+            <p style="margin:0 0 6px 0; font-size:.85rem; color:#7aa2f7; font-weight:700;">Modelo de Bohr</p>
+            <canvas id="bohrCanvas" width="220" height="220"></canvas>
+          </div>
+          <div style="text-align:center;">
+            <p style="margin:0 0 6px 0; font-size:.85rem; color:#7aa2f7; font-weight:700;">Diagrama de Lewis</p>
+            <canvas id="lewisCanvas" width="220" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADIVINANZAS -->
+      <div id="view-riddles">
+        <h3 style="color:var(--accent); margin:0 0 4px 0;">¡Pon a prueba tu conocimiento!</h3>
+        <p style="font-size:.9rem; opacity:.8; margin:0 0 10px 0;">Lee la pista y haz clic en el elemento correcto en la tabla periódica.</p>
+        <div class="riddle-row">
+          <label for="sel-diff" style="opacity:.8;">Dificultad:</label>
+          <select id="sel-diff" class="sel" onchange="difficulty=this.value; savePrefs();">
+            <option value="facil">Fácil</option>
+            <option value="medio">Medio</option>
+            <option value="dificil">Difícil</option>
+          </select>
+          <button id="btn-start-riddle" class="btn-action" onclick="startRiddles()">Empezar</button>
+          <button id="btn-next-riddle" class="btn-action" style="display:none;" onclick="loadNextRiddle()">Siguiente</button>
+          <button id="btn-hint" class="btn-action" style="display:none;" onclick="revealHint()">Pista @</button>
+        </div>
+
+        <div class="riddle-box">
+          <div id="riddle-text" class="riddle-text">Haz clic en “Empezar” para tu primera adivinanza o misión.</div>
+        </div>
+
+        <div id="riddle-feedback" class="riddle-feedback hud"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // ====== DATOS BASE (118 elementos) ======
+    // Nota: aw, ec, os no están completos; mostramos 'N/D' si faltan.
+    const elementsData = [
+      {z:1,sy:'H',n:'Hidrógeno',g:1,p:1,en:2.20,r:53,ie:1312,c:'nonmetal', aw:1.008, os:'+1, -1'},
+      {z:2,sy:'He',n:'Helio',g:18,p:1,en:0,r:31,ie:2372,c:'noble', aw:4.0026},
+      {z:3,sy:'Li',n:'Litio',g:1,p:2,en:0.98,r:167,ie:520,c:'alkali', aw:6.94, os:'+1'},
+      {z:4,sy:'Be',n:'Berilio',g:2,p:2,en:1.57,r:112,ie:899,c:'alkaline', aw:9.0122, os:'+2'},
+      {z:5,sy:'B',n:'Boro',g:13,p:2,en:2.04,r:87,ie:801,c:'metalloid', aw:10.81, os:'+3'},
+      {z:6,sy:'C',n:'Carbono',g:14,p:2,en:2.55,r:67,ie:1086,c:'nonmetal', aw:12.011, os:'-4, +4, +2, -2'},
+      {z:7,sy:'N',n:'Nitrógeno',g:15,p:2,en:3.04,r:56,ie:1402,c:'nonmetal', aw:14.007, os:'-3, +3, +5, +4, +2, -2, -1, +1'},
+      {z:8,sy:'O',n:'Oxígeno',g:16,p:2,en:3.44,r:48,ie:1314,c:'nonmetal', aw:15.999, os:'-2, -1, +1, +2'},
+      {z:9,sy:'F',n:'Flúor',g:17,p:2,en:3.98,r:42,ie:1681,c:'halogen', aw:18.998, os:'-1'},
+      {z:10,sy:'Ne',n:'Neón',g:18,p:2,en:0,r:38,ie:2080,c:'noble', aw:20.180},
+      {z:11,sy:'Na',n:'Sodio',g:1,p:3,en:0.93,r:190,ie:496,c:'alkali', aw:22.990, os:'+1'},
+      {z:12,sy:'Mg',n:'Magnesio',g:2,p:3,en:1.31,r:145,ie:738,c:'alkaline', aw:24.305, os:'+2'},
+      {z:13,sy:'Al',n:'Aluminio',g:13,p:3,en:1.61,r:118,ie:578,c:'post', aw:26.982, os:'+3'},
+      {z:14,sy:'Si',n:'Silicio',g:14,p:3,en:1.90,r:111,ie:786,c:'metalloid', aw:28.085, os:'-4, +4, +2'},
+      {z:15,sy:'P',n:'Fósforo',g:15,p:3,en:2.19,r:98,ie:1012,c:'nonmetal', aw:30.974, os:'-3, +3, +5'},
+      {z:16,sy:'S',n:'Azufre',g:16,p:3,en:2.58,r:88,ie:1000,c:'nonmetal', aw:32.06, os:'-2, +4, +6'},
+      {z:17,sy:'Cl',n:'Cloro',g:17,p:3,en:3.16,r:79,ie:1251,c:'halogen', aw:35.45, os:'-1, +1, +3, +5, +7'},
+      {z:18,sy:'Ar',n:'Argón',g:18,p:3,en:0,r:71,ie:1520,c:'noble', aw:39.948},
+      {z:19,sy:'K',n:'Potasio',g:1,p:4,en:0.82,r:243,ie:419,c:'alkali', aw:39.098, os:'+1'},
+      {z:20,sy:'Ca',n:'Calcio',g:2,p:4,en:1.00,r:194,ie:590,c:'alkaline', aw:40.078, os:'+2'},
+      {z:21,sy:'Sc',n:'Escandio',g:3,p:4,en:1.36,r:184,ie:633,c:'transition', aw:44.956, os:'+3'},
+      {z:22,sy:'Ti',n:'Titanio',g:4,p:4,en:1.54,r:176,ie:659,c:'transition', aw:47.867, os:'+4, +3, +2'},
+      {z:23,sy:'V',n:'Vanadio',g:5,p:4,en:1.63,r:171,ie:651,c:'transition', aw:50.942, os:'+5, +4, +3, +2'},
+      {z:24,sy:'Cr',n:'Cromo',g:6,p:4,en:1.66,r:166,ie:653,c:'transition', aw:51.996, os:'+6, +3, +2'},
+      {z:25,sy:'Mn',n:'Manganeso',g:7,p:4,en:1.55,r:161,ie:717,c:'transition', aw:54.938, os:'+7, +6, +4, +3, +2, +1, -1, -2'},
+      {z:26,sy:'Fe',n:'Hierro',g:8,p:4,en:1.83,r:156,ie:763,c:'transition', aw:55.845, os:'+2, +3'},
+      {z:27,sy:'Co',n:'Cobalto',g:9,p:4,en:1.88,r:152,ie:760,c:'transition', aw:58.933, os:'+2, +3'},
+      {z:28,sy:'Ni',n:'Níquel',g:10,p:4,en:1.91,r:149,ie:737,c:'transition', aw:58.693, os:'+2, +3'},
+      {z:29,sy:'Cu',n:'Cobre',g:11,p:4,en:1.90,r:145,ie:746,c:'transition', aw:63.546, os:'+1, +2'},
+      {z:30,sy:'Zn',n:'Zinc',g:12,p:4,en:1.65,r:142,ie:906,c:'transition', aw:65.38, os:'+2'},
+      {z:31,sy:'Ga',n:'Galio',g:13,p:4,en:1.81,r:136,ie:579,c:'post', aw:69.723, os:'+3, +1'},
+      {z:32,sy:'Ge',n:'Germanio',g:14,p:4,en:2.01,r:125,ie:762,c:'metalloid', aw:72.630, os:'+4, +2, -4'},
+      {z:33,sy:'As',n:'Arsénico',g:15,p:4,en:2.18,r:114,ie:947,c:'metalloid', aw:74.922, os:'-3, +3, +5'},
+      {z:34,sy:'Se',n:'Selenio',g:16,p:4,en:2.55,r:103,ie:941,c:'nonmetal', aw:78.971, os:'-2, +4, +6'},
+      {z:35,sy:'Br',n:'Bromo',g:17,p:4,en:2.96,r:94,ie:1140,c:'halogen', aw:79.904, os:'-1, +1, +3, +5, +7'},
+      {z:36,sy:'Kr',n:'Kriptón',g:18,p:4,en:3.00,r:88,ie:1351,c:'noble', aw:83.798},
+      {z:37,sy:'Rb',n:'Rubidio',g:1,p:5,en:0.82,r:265,ie:403,c:'alkali', aw:85.468, os:'+1'},
+      {z:38,sy:'Sr',n:'Estroncio',g:2,p:5,en:0.95,r:219,ie:550,c:'alkaline', aw:87.62, os:'+2'},
+      {z:39,sy:'Y',n:'Itrio',g:3,p:5,en:1.22,r:212,ie:600,c:'transition', aw:88.906, os:'+3'},
+      {z:40,sy:'Zr',n:'Circonio',g:4,p:5,en:1.33,r:206,ie:640,c:'transition', aw:91.224, os:'+4, +2'},
+      {z:41,sy:'Nb',n:'Niobio',g:5,p:5,en:1.6,r:198,ie:652,c:'transition', aw:92.906, os:'+5, +4, +3, +2'},
+      {z:42,sy:'Mo',n:'Molibdeno',g:6,p:5,en:2.16,r:190,ie:684,c:'transition', aw:95.95, os:'+6, +4, +3, +2'},
+      {z:43,sy:'Tc',n:'Tecnecio',g:7,p:5,en:1.9,r:183,ie:702,c:'transition', aw:98},
+      {z:44,sy:'Ru',n:'Rutenio',g:8,p:5,en:2.2,r:178,ie:710,c:'transition', aw:101.07},
+      {z:45,sy:'Rh',n:'Rodio',g:9,p:5,en:2.28,r:173,ie:720,c:'transition', aw:102.91},
+      {z:46,sy:'Pd',n:'Paladio',g:10,p:5,en:2.20,r:169,ie:804,c:'transition', aw:106.42},
+      {z:47,sy:'Ag',n:'Plata',g:11,p:5,en:1.93,r:165,ie:731,c:'transition', aw:107.87, os:'+1'},
+      {z:48,sy:'Cd',n:'Cadmio',g:12,p:5,en:1.69,r:161,ie:868,c:'transition', aw:112.41, os:'+2'},
+      {z:49,sy:'In',n:'Indio',g:13,p:5,en:1.78,r:156,ie:558,c:'post', aw:114.82, os:'+3, +1'},
+      {z:50,sy:'Sn',n:'Estaño',g:14,p:5,en:1.96,r:145,ie:709,c:'post', aw:118.71, os:'+2, +4'},
+      {z:51,sy:'Sb',n:'Antimonio',g:15,p:5,en:2.05,r:133,ie:834,c:'metalloid', aw:121.76, os:'-3, +3, +5'},
+      {z:52,sy:'Te',n:'Telurio',g:16,p:5,en:2.1,r:123,ie:869,c:'metalloid', aw:127.60, os:'-2, +4, +6'},
+      {z:53,sy:'I',n:'Yodo',g:17,p:5,en:2.66,r:115,ie:1008,c:'halogen', aw:126.90, os:'-1, +1, +3, +5, +7'},
+      {z:54,sy:'Xe',n:'Xenón',g:18,p:5,en:2.6,r:108,ie:1170,c:'noble', aw:131.29},
+      {z:55,sy:'Cs',n:'Cesio',g:1,p:6,en:0.79,r:298,ie:376,c:'alkali', aw:132.91, os:'+1'},
+      {z:56,sy:'Ba',n:'Bario',g:2,p:6,en:0.89,r:253,ie:503,c:'alkaline', aw:137.33, os:'+2'},
+      // Lantánidos (57-71)
+      {z:57,sy:'La',n:'Lantano',g:3,p:6,en:1.1,r:195,ie:538,c:'lanthanide', aw:138.91, os:'+3'},
+      {z:58,sy:'Ce',n:'Cerio',g:3,p:6,en:1.12,r:185,ie:534,c:'lanthanide', aw:140.12, os:'+3, +4'},
+      {z:59,sy:'Pr',n:'Praseodimio',g:3,p:6,en:1.13,r:247,ie:527,c:'lanthanide', aw:140.91, os:'+3'},
+      {z:60,sy:'Nd',n:'Neodimio',g:3,p:6,en:1.14,r:206,ie:533,c:'lanthanide', aw:144.24, os:'+3'},
+      {z:61,sy:'Pm',n:'Prometio',g:3,p:6,en:1.13,r:205,ie:540,c:'lanthanide', aw:145},
+      {z:62,sy:'Sm',n:'Samario',g:3,p:6,en:1.17,r:238,ie:545,c:'lanthanide', aw:150.36, os:'+3, +2'},
+      {z:63,sy:'Eu',n:'Europio',g:3,p:6,en:1.2,r:231,ie:547,c:'lanthanide', aw:151.96, os:'+3, +2'},
+      {z:64,sy:'Gd',n:'Gadolinio',g:3,p:6,en:1.2,r:233,ie:593,c:'lanthanide', aw:157.25, os:'+3'},
+      {z:65,sy:'Tb',n:'Terbio',g:3,p:6,en:1.2,r:225,ie:566,c:'lanthanide', aw:158.93, os:'+3'},
+      {z:66,sy:'Dy',n:'Disprosio',g:3,p:6,en:1.22,r:228,ie:573,c:'lanthanide', aw:162.50, os:'+3'},
+      {z:67,sy:'Ho',n:'Holmio',g:3,p:6,en:1.23,r:226,ie:581,c:'lanthanide', aw:164.93, os:'+3'},
+      {z:68,sy:'Er',n:'Erbio',g:3,p:6,en:1.24,r:226,ie:589,c:'lanthanide', aw:167.26, os:'+3'},
+      {z:69,sy:'Tm',n:'Tulio',g:3,p:6,en:1.25,r:222,ie:597,c:'lanthanide', aw:168.93, os:'+3'},
+      {z:70,sy:'Yb',n:'Iterbio',g:3,p:6,en:1.1,r:222,ie:603,c:'lanthanide', aw:173.05, os:'+3, +2'},
+      {z:71,sy:'Lu',n:'Lutecio',g:3,p:6,en:1.27,r:217,ie:524,c:'lanthanide', aw:174.97, os:'+3'},
+      // Continuación
+      {z:72,sy:'Hf',n:'Hafnio',g:4,p:6,en:1.3,r:208,ie:658,c:'transition', aw:178.49, os:'+4'},
+      {z:73,sy:'Ta',n:'Tantalio',g:5,p:6,en:1.5,r:200,ie:761,c:'transition', aw:180.95, os:'+5'},
+      {z:74,sy:'W',n:'Wolframio',g:6,p:6,en:2.36,r:193,ie:770,c:'transition', aw:183.84, os:'+6, +4, +2'},
+      {z:75,sy:'Re',n:'Renio',g:7,p:6,en:1.9,r:188,ie:760,c:'transition', aw:186.21, os:'+7, +6, +4, +2'},
+      {z:76,sy:'Os',n:'Osmio',g:8,p:6,en:2.2,r:185,ie:840,c:'transition', aw:190.23, os:'+4, +3, +8'},
+      {z:77,sy:'Ir',n:'Iridio',g:9,p:6,en:2.2,r:180,ie:880,c:'transition', aw:192.22, os:'+4, +3'},
+      {z:78,sy:'Pt',n:'Platino',g:10,p:6,en:2.28,r:177,ie:870,c:'transition', aw:195.08, os:'+4, +2'},
+      {z:79,sy:'Au',n:'Oro',g:11,p:6,en:2.54,r:174,ie:890,c:'transition', aw:196.97, os:'+3, +1'},
+      {z:80,sy:'Hg',n:'Mercurio',g:12,p:6,en:2.0,r:171,ie:1007,c:'transition', aw:200.59, os:'+2, +1'},
+      {z:81,sy:'Tl',n:'Talio',g:13,p:6,en:1.62,r:156,ie:589,c:'post', aw:204.38, os:'+3, +1'},
+      {z:82,sy:'Pb',n:'Plomo',g:14,p:6,en:2.33,r:154,ie:716,c:'post', aw:207.2, os:'+2, +4'},
+      {z:83,sy:'Bi',n:'Bismuto',g:15,p:6,en:2.02,r:143,ie:703,c:'post', aw:208.98, os:'+3, +5'},
+      {z:84,sy:'Po',n:'Polonio',g:16,p:6,en:2.0,r:135,ie:812,c:'metalloid', aw:209},
+      {z:85,sy:'At',n:'Astato',g:17,p:6,en:2.2,r:127,ie:920,c:'halogen', aw:210},
+      {z:86,sy:'Rn',n:'Radón',g:18,p:6,en:2.2,r:120,ie:1037,c:'noble', aw:222},
+      {z:87,sy:'Fr',n:'Francio',g:1,p:7,en:0.7,r:348,ie:380,c:'alkali', aw:223},
+      {z:88,sy:'Ra',n:'Radio',g:2,p:7,en:0.9,r:283,ie:509,c:'alkaline', aw:226, os:'+2'},
+      // Actínidos (89-103)
+      {z:89,sy:'Ac',n:'Actinio',g:3,p:7,en:1.1,r:195,ie:499,c:'actinide', aw:227, os:'+3'},
+      {z:90,sy:'Th',n:'Torio',g:3,p:7,en:1.3,r:180,ie:587,c:'actinide', aw:232.04, os:'+4'},
+      {z:91,sy:'Pa',n:'Protactinio',g:3,p:7,en:1.5,r:180,ie:568,c:'actinide', aw:231.04},
+      {z:92,sy:'U',n:'Uranio',g:3,p:7,en:1.38,r:175,ie:598,c:'actinide', aw:238.03, os:'+6, +4, +3'},
+      {z:93,sy:'Np',n:'Neptunio',g:3,p:7,en:1.36,r:175,ie:605,c:'actinide', aw:237},
+      {z:94,sy:'Pu',n:'Plutonio',g:3,p:7,en:1.28,r:175,ie:585,c:'actinide', aw:244},
+      {z:95,sy:'Am',n:'Americio',g:3,p:7,en:1.13,r:175,ie:578,c:'actinide', aw:243},
+      {z:96,sy:'Cm',n:'Curio',g:3,p:7,en:1.28,r:175,ie:581,c:'actinide', aw:247},
+      {z:97,sy:'Bk',n:'Berkelio',g:3,p:7,en:1.3,r:175,ie:580,c:'actinide', aw:247},
+      {z:98,sy:'Cf',n:'Californio',g:3,p:7,en:1.3,r:175,ie:608,c:'actinide', aw:251},
+      {z:99,sy:'Es',n:'Einstenio',g:3,p:7,en:1.3,r:175,ie:619,c:'actinide', aw:252},
+      {z:100,sy:'Fm',n:'Fermio',g:3,p:7,en:1.3,r:175,ie:627,c:'actinide', aw:257},
+      {z:101,sy:'Md',n:'Mendelevio',g:3,p:7,en:1.3,r:175,ie:635,c:'actinide', aw:258},
+      {z:102,sy:'No',n:'Nobelio',g:3,p:7,en:1.3,r:175,ie:642,c:'actinide', aw:259},
+      {z:103,sy:'Lr',n:'Lawrencio',g:3,p:7,en:1.3,r:175,ie:470,c:'actinide', aw:262},
+      // Superpesados
+      {z:104,sy:'Rf',n:'Rutherfordio',g:4,p:7,en:0,r:0,ie:580,c:'transition', aw:267},
+      {z:105,sy:'Db',n:'Dubnio',g:5,p:7,en:0,r:0,ie:0,c:'transition', aw:268},
+      {z:106,sy:'Sg',n:'Seaborgio',g:6,p:7,en:0,r:0,ie:0,c:'transition', aw:269},
+      {z:107,sy:'Bh',n:'Bohrio',g:7,p:7,en:0,r:0,ie:0,c:'transition', aw:270},
+      {z:108,sy:'Hs',n:'Hassio',g:8,p:7,en:0,r:0,ie:0,c:'transition', aw:269},
+      {z:109,sy:'Mt',n:'Meitnerio',g:9,p:7,en:0,r:0,ie:0,c:'unknown', aw:278},
+      {z:110,sy:'Ds',n:'Darmstadtio',g:10,p:7,en:0,r:0,ie:0,c:'unknown', aw:281},
+      {z:111,sy:'Rg',n:'Roentgenio',g:11,p:7,en:0,r:0,ie:0,c:'unknown', aw:282},
+      {z:112,sy:'Cn',n:'Copernicio',g:12,p:7,en:0,r:0,ie:0,c:'transition', aw:285},
+      {z:113,sy:'Nh',n:'Nihonio',g:13,p:7,en:0,r:0,ie:0,c:'post', aw:286},
+      {z:114,sy:'Fl',n:'Flerovio',g:14,p:7,en:0,r:0,ie:0,c:'post', aw:289},
+      {z:115,sy:'Mc',n:'Moscovio',g:15,p:7,en:0,r:0,ie:0,c:'post', aw:290},
+      {z:116,sy:'Lv',n:'Livermorio',g:16,p:7,en:0,r:0,ie:0,c:'post', aw:293},
+      {z:117,sy:'Ts',n:'Teneso',g:17,p:7,en:0,r:0,ie:0,c:'halogen', aw:294},
+      {z:118,sy:'Og',n:'Oganesón',g:18,p:7,en:0,r:0,ie:0,c:'noble', aw:294}
+    ];
+
+    // ====== ESTADO Y PREFERENCIAS ======
+    let state = {
+      selectedZ: 1,
+      mode: 'info', // 'info' | 'riddles'
+      currentRiddle: null,
+      riddleActive: false
+    };
+    let query = ''; let catFilter = 'all'; let activeHeatmap = null;
+
+    // Adivinanzas / Misiones
+    const adivinanzas = [
+      { z: 1, text: "Soy el elemento más ligero y abundante del universo. ¡Sin mí, las estrellas no brillarían!" },
+      { z: 6, text: "Soy la base de la vida en la Tierra: en carbón y en diamantes me verás." },
+      { z: 8, text: "Respiras mi forma diatómica a diario; también formo gran parte del agua." },
+      { z: 11, text: "Metal alcalino que reacciona con agua; con Cloro formo la sal de mesa." },
+      { z: 26, text: "Metal fuerte; mi símbolo viene de 'ferrum'. Estoy en edificios y en tu sangre." },
+      { z: 74, text: "Tengo el mayor punto de fusión entre los metales. Símbolo: W. Iluminé bombillas antiguas." },
+      { z: 79, text: "Metal precioso amarillo, muy maleable, símbolo de riqueza." },
+      { z: 80, text: "Único metal líquido a temperatura ambiente; en termómetros antiguos me usaban." }
+    ];
+    // Misiones de tendencia
+    const missions = [
+      {
+        kind: 'mission',
+        prompt: 'Selecciona el elemento con MAYOR electronegatividad en el periodo 2.',
+        best: () => elementsData.filter(e=>e.p===2 && e.en>0).sort((a,b)=>b.en-a.en)[0].z
+      },
+      {
+        kind: 'mission',
+        prompt: 'Haz clic en un NO METAL del grupo 16.',
+        check: (el) => el.c==='nonmetal' && el.g===16
+      },
+      {
+        kind: 'mission',
+        prompt: '¿Cuál es el metal alcalino MÁS PESADO (Z más alto)?',
+        best: () => elementsData.filter(e=>e.c==='alkali').sort((a,b)=>b.z-a.z)[0].z
+      }
+    ];
+
+    // Dificultad, score, combo, timer
+    let difficulty = 'facil';
+    let score = 0; let combo = 0;
+    let timer = null; let timeLeft = 0;
+    let revealedHints = 0;
+    const HINT_PENALTY = 15;
+
+    // Audio
+    let audioCtx=null;
+    function getCtx(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+    function playTone(ok=true){
+      const ctx=getCtx();
+      if(ok){
+        const seq=[ {f:660,d:0.10}, {f:880,d:0.12} ];
+        let t=ctx.currentTime;
+        seq.forEach(s=>{
+          const o=ctx.createOscillator(), g=ctx.createGain();
+          o.type='sine'; o.frequency.value=s.f;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.15, t+0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t+s.d);
+          o.connect(g).connect(ctx.destination);
+          o.start(t); o.stop(t+s.d+0.02);
+          t += s.d*0.9;
+        });
+      } else {
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type='square'; o.frequency.value=200;
+        const t=ctx.currentTime;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.12, t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.25);
+        o.connect(g).connect(ctx.destination);
+        o.start(t); o.stop(t+0.28);
+      }
+    }
+    function feedback(ok){
+      playTone(ok);
+      const overlay = document.getElementById('feedbackOverlay');
+      overlay.className = `feedback-overlay show ${ok ? 'ok' : 'bad'}`;
+      overlay.setAttribute('aria-hidden','false');
+      setTimeout(()=>{
+        overlay.className = 'feedback-overlay';
+        overlay.setAttribute('aria-hidden','true');
+      }, 350);
+    }
+
+    // ====== BUSCAR, FILTRAR, HEATMAP ======
+    document.getElementById('searchEl').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderTable(); if(activeHeatmap) heatmap(activeHeatmap); });
+    document.getElementById('filterCat').addEventListener('change', e => { catFilter = e.target.value; renderTable(); if(activeHeatmap) heatmap(activeHeatmap); });
+
+    function heatmap(prop){
+      activeHeatmap = prop;
+      const grid = document.getElementById('pt-grid');
+      // reset
+      grid.querySelectorAll('.element-cell').forEach(node => { node.style.background = '#1a1b26'; });
+      if (!prop) return;
+      const values = elementsData.map(e => e[prop]).filter(v => v && v>0);
+      if (!values.length) return;
+      const min = Math.min(...values), max = Math.max(...values);
+      grid.querySelectorAll('.element-cell').forEach(node => {
+        const z = Number(node.dataset.z || node.querySelector('.el-z')?.textContent || 0);
+        const el = elementsData.find(e => e.z === z);
+        if (!el || !(el[prop] > 0)) return;
+        const t = (el[prop]-min) / (max-min + 1e-6);
+        const r = Math.round(0xff * t + 0x1e * (1 - t));
+        const g = Math.round(0x4d * t + 0x90 * (1 - t));
+        const b = Math.round(0x4f * t + 0xff * (1 - t));
+        node.style.background = `rgba(${r},${g},${b},0.18)`;
+      });
+    }
+
+    // ====== TABS ======
+    window.setMode = (mode) => {
+      state.mode = mode;
+      document.getElementById('tab-info').className = mode === 'info' ? 'active' : '';
+      document.getElementById('tab-riddles').className = mode === 'riddles' ? 'active' : '';
+      document.getElementById('view-info').style.display = mode === 'info' ? 'flex' : 'none';
+      document.getElementById('view-riddles').style.display = mode === 'riddles' ? 'flex' : 'none';
+      renderTable();
+      if (activeHeatmap) heatmap(activeHeatmap);
+    };
+
+    // ====== RIDDLES: Dificultad, timer, scoring ======
+    function savePrefs(){
+      try {
+        localStorage.setItem('pq_selectedZ', String(state.selectedZ));
+        localStorage.setItem('pq_difficulty', difficulty);
+        localStorage.setItem('pq_score', String(score));
+      } catch(e){}
+    }
+    function loadPrefs(){
+      try {
+        const z = parseInt(localStorage.getItem('pq_selectedZ'),10);
+        const d = localStorage.getItem('pq_difficulty');
+        const s = parseInt(localStorage.getItem('pq_score'),10);
+        if (!isNaN(z)) state.selectedZ = z;
+        if (d) { difficulty = d; const sel=document.getElementById('sel-diff'); if (sel) sel.value=difficulty; }
+        if (!isNaN(s)) score = s;
+      } catch(e){}
+    }
+
+    function startTimer(seconds = 25) {
+      clearInterval(timer);
+      timeLeft = seconds;
+      updateRiddleHUD();
+      timer = setInterval(() => {
+        timeLeft--;
+        updateRiddleHUD();
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          endRiddle(false, { reason: 'timeout' });
+        }
+      }, 1000);
+    }
+    function updateRiddleHUD() {
+      const fb = document.getElementById('riddle-feedback');
+      fb.innerHTML = `⏱️ Tiempo: <b>${timeLeft}s</b> | ⭐ Puntos: <b>${score}</b> | 🔗 Combo: <b>${combo}</b>`;
+    }
+    function pointsForAnswer(isCorrect) {
+      if (!isCorrect) return 0;
+      const base = 40 + Math.ceil((timeLeft / 25) * 60); // máx ~100
+      const mult = 1 + (combo * 0.2); // cada acierto seguido +20%
+      return Math.round(base * mult);
+    }
+
+    function poolByDifficulty() {
+      if (difficulty === 'facil') return elementsData.filter(e => e.z <= 20 || [1,2,17,18].includes(e.g));
+      if (difficulty === 'medio') return elementsData.filter(e => e.z <= 54);
+      return elementsData; // difícil: todo
+    }
+
+    function pickRiddleByDifficulty() {
+      const pool = poolByDifficulty();
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    window.startRiddles = () => {
+      // Reinicia variables
+      revealedHints = 0;
+      state.riddleActive = true;
+      combo = 0;
+      // UI
+      document.getElementById('btn-start-riddle').style.display = 'none';
+      document.getElementById('btn-next-riddle').style.display = 'none';
+      document.getElementById('btn-hint').style.display = 'inline-block';
+      loadNextRiddle();
+    };
+
+    function randomChallenge() {
+      // 70% adivinanza tradicional, 30% misión de tendencia
+      const roll = Math.random();
+      if (roll < 0.7) {
+        const ans = pickRiddleByDifficulty();
+        return { kind:'riddle', z: ans.z, text: adivinanzas.find(a=>a.z===ans.z)?.text || `Adivina el elemento con símbolo que inicia en "${ans.sy[0]}".` };
+      } else {
+        const m = missions[Math.floor(Math.random()*missions.length)];
+        if (m.best) return { kind:'mission', prompt: m.prompt, best: m.best };
+        return { kind:'mission', prompt: m.prompt, check: m.check };
+      }
+    }
+
+    window.loadNextRiddle = () => {
+      document.getElementById('btn-next-riddle').style.display = 'none';
+      const box = document.getElementById('riddle-text');
+      const fb = document.getElementById('riddle-feedback');
+      fb.style.color = ''; fb.textContent = '';
+
+      state.currentRiddle = randomChallenge();
+      revealedHints = 0;
+
+      if (state.currentRiddle.kind === 'riddle') {
+        box.innerText = state.currentRiddle.text;
+      } else {
+        box.innerText = state.currentRiddle.prompt;
+      }
+      state.riddleActive = true;
+      startTimer(25);
+      updateRiddleHUD();
+    };
+
+    window.revealHint = () => {
+      if (!state.currentRiddle || !state.riddleActive) return;
+      const box = document.getElementById('riddle-text');
+      // Penaliza
+      score = Math.max(0, score - HINT_PENALTY);
+      // Construye pista
+      const hint = makeHint();
+      if (hint) box.innerHTML += `<br><span style="color:#bb9af7;font-weight:700">@</span> ${hint}`;
+      revealedHints++;
+      updateRiddleHUD();
+      savePrefs();
+    };
+
+    function makeHint() {
+      if (state.currentRiddle.kind === 'riddle') {
+        const z = state.currentRiddle.z;
+        const el = elementsData.find(e=>e.z===z);
+        if (!el) return null;
+        const hints = [
+          `Familia: ${categoryLabel(el.c)}.`,
+          `Periodo: ${el.p}.`,
+          `Z entre ${Math.max(1, el.z-3)} y ${Math.min(118, el.z+3)}.`,
+          el.en>0 ? `EN (Pauling) ≈ ${el.en.toFixed(2)}.` : null,
+          `Símbolo inicia con “${el.sy[0]}”.`
+        ].filter(Boolean);
+        return hints[Math.min(revealedHints, hints.length-1)];
+      } else {
+        // misión: dar pistas genéricas
+        const h = [
+          'Aplica una TENDENCIA periódica.',
+          'Piensa en la posición: grupo y periodo.',
+          'Compara valores relativos (EN, masa, Z).'
+        ];
+        return h[Math.min(revealedHints, h.length-1)];
+      }
+    }
+
+    function categoryLabel(code){
+      const map = {
+        alkali:'metal alcalino', alkaline:'metal alcalinotérreo', transition:'metal de transición',
+        post:'metal de post-transición', metalloid:'metaloide', nonmetal:'no metal',
+        halogen:'halógeno', noble:'gas noble', lanthanide:'lantánido', actinide:'actínido', unknown:'desconocido'
+      };
+      return map[code] || '—';
+    }
+
+    function endRiddle(correct, { reason } = {}) {
+      state.riddleActive = false;
+      clearInterval(timer);
+      const feedback = document.getElementById('riddle-feedback');
+      if (correct) {
+        combo++;
+        const gained = pointsForAnswer(true);
+        score += gained;
+        feedback.innerHTML = `✅ ¡Correcto! +${gained} puntos. Total: <b>${score}</b>`;
+        feedback.style.color = 'var(--correct)';
+        document.getElementById('btn-next-riddle').style.display = 'inline-block';
+        feedback(true);
+      } else {
+        combo = 0;
+        let msg = (reason === 'timeout') ? '⏰ Se acabó el tiempo.' : '❌ Incorrecto.';
+        feedback.innerHTML = `${msg} Pide una <b>Pista @</b> o intenta otra.`;
+        feedback.style.color = 'var(--error)';
+        // Puedes permitir seguir intentando sin Next; aquí dejamos “siguiente” para flujo ágil:
+        document.getElementById('btn-next-riddle').style.display = 'inline-block';
+        feedback(false);
+      }
+      updateRiddleHUD();
+      savePrefs();
+    }
+
+    // ====== EVENTOS DE TABLA ======
+    function handleElementClick(el) {
+      if (state.mode === 'info') {
+        state.selectedZ = el.z;
+        updateInfoPanel();
+        renderTable(); // refresco selección
+        if (activeHeatmap) heatmap(activeHeatmap);
+        savePrefs();
+      } else if (state.mode === 'riddles' && state.riddleActive && state.currentRiddle) {
+        if (state.currentRiddle.kind === 'riddle') {
+          endRiddle(el.z === state.currentRiddle.z, { reason: el.z === state.currentRiddle.z ? 'ok' : 'wrong' });
+        } else {
+          // misión
+          let ok = false;
+          if (state.currentRiddle.best) ok = (el.z === state.currentRiddle.best());
+          else if (state.currentRiddle.check) ok = state.currentRiddle.check(el);
+          endRiddle(ok, { reason: ok ? 'ok' : 'wrong' });
+        }
+      }
+    }
+
+    // ====== RENDER TABLA ======
+    function renderTable() {
+      const grid = document.getElementById('pt-grid');
+      grid.innerHTML = '';
+
+      // Grupos
+      for(let i=1; i<=18; i++) {
+        const label = document.createElement('div');
+        label.className = 'grid-label'; label.innerText = i;
+        label.style.gridColumn = i + 1; label.style.gridRow = 1;
+        grid.appendChild(label);
+      }
+      // Periodos
+      for(let i=1; i<=7; i++) {
+        const label = document.createElement('div');
+        label.className = 'grid-label'; label.innerText = i;
+        label.style.gridColumn = 1; label.style.gridRow = i + 1;
+        grid.appendChild(label);
+      }
+
+      // Marcadores Lantánidos/Actínidos
+      const addMarker = (text, col, row) => {
+        const marker = document.createElement('div');
+        marker.className = 'grid-label'; marker.innerText = text;
+        marker.style.gridColumn = col; marker.style.gridRow = row;
+        marker.style.fontSize = '0.65rem'; marker.style.color = 'var(--text-color)'; marker.style.opacity = '0.5';
+        grid.appendChild(marker);
+      };
+      addMarker('57-71', 4, 7);
+      addMarker('89-103', 4, 8);
+
+      // Filtros y búsqueda
+      const list = elementsData.filter(el => {
+        if (catFilter !== 'all' && el.c !== catFilter) return false;
+        if (query) {
+          const q = query.toLowerCase();
+          const match = el.sy.toLowerCase().includes(q) || el.n.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      // Render celdas
+      elementsData.forEach(el => {
+        if (!list.includes(el)) return;
+        const cell = document.createElement('div');
+        const selected = (el.z === state.selectedZ && state.mode === 'info');
+        cell.className = `element-cell cat-${el.c} ${selected ? 'selected' : ''}`;
+        cell.dataset.z = el.z;
+
+        // Posición
+        let col = el.g + 1;
+        let row = el.p + 1;
+        if (el.z >= 57 && el.z <= 71) { col = (el.z - 57) + 4; row = 10; }
+        else if (el.z >= 89 && el.z <= 103) { col = (el.z - 89) + 4; row = 11; }
+        cell.style.gridColumn = col; cell.style.gridRow = row;
+
+        cell.innerHTML = `<span class="el-z">${el.z}</span><span class="el-sy">${el.sy}</span>`;
+        cell.setAttribute('role','button'); cell.setAttribute('tabindex','0');
+        cell.setAttribute('aria-label', `${el.n}, grupo ${el.g}, período ${el.p}`);
+        cell.onkeydown = (ev)=>{ if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();cell.click();} };
+        cell.onclick = () => handleElementClick(el);
+
+        grid.appendChild(cell);
+      });
+    }
+
+    // ====== INFO PANEL: EC abreviada + valencia + Lewis ======
+    function electronConfigAbbrev(z){
+      // Orden de llenado
+      const fill = [[1,'s',2],[2,'s',2],[2,'p',6],[3,'s',2],[3,'p',6],[4,'s',2],[3,'d',10],[4,'p',6],[5,'s',2],[4,'d',10],[5,'p',6],[6,'s',2],[4,'f',14],[5,'d',10],[6,'p',6],[7,'s',2],[5,'f',14],[6,'d',10],[7,'p',6]];
+      const noble = [{z:2,s:'He'},{z:10,s:'Ne'},{z:18,s:'Ar'},{z:36,s:'Kr'},{z:54,s:'Xe'},{z:86,s:'Rn'},{z:118,s:'Og'}];
+
+      // Excepciones comunes (representación didáctica)
+      const exceptions = {
+        24: '[Ar] 3d^5 4s^1',  // Cr
+        29: '[Ar] 3d^10 4s^1', // Cu
+        42: '[Kr] 4d^5 5s^1',  // Mo
+        47: '[Kr] 4d^10 5s^1', // Ag
+        79: '[Xe] 4f^14 5d^10 6s^1' // Au
+      };
+      if (exceptions[z]) return exceptions[z];
+
+      let left=z, parts=[], acc=0, cut=-1, core=null;
+      for (const [n,sub,cap] of fill){ if(left<=0) break; const put=Math.min(cap,left); parts.push({n,sub,e:put}); left-=put; }
+      core = noble.filter(g=>g.z<z).pop();
+      for (let i=0;i<parts.length;i++){ acc+=parts[i].e; if(core && acc===core.z){ cut=i; break; } }
+      const tail = cut>=0 ? parts.slice(cut+1) : parts;
+      const toText = arr => arr.map(o => `${o.n}${o.sub}${o.e>1?`^${o.e}`:''}`).join(' ');
+      return (core?`[${core.s}] `:'') + toText(tail);
+    }
+
+    function valenceElectrons(el){
+      // Sólo main-group 1–2 y 13–18
+      if ((el.g>=1 && el.g<=2) || (el.g>=13 && el.g<=18)) {
+        if (el.sy==='He') return 2;
+        return el.g<=2 ? el.g : (el.g - 10);
+      }
+      return null; // transición / f-block
+    }
+
+    function valenceConf(el){
+      // Aproximación didáctica ns/np
+      if ((el.g>=1 && el.g<=2) || (el.g>=13 && el.g<=18)) {
+        const n = el.p; // nivel principal aprox
+        if (el.sy==='H') return `1s^1`;
+        if (el.sy==='He') return `1s^2`;
+        if (el.g<=2) return `${n}s^${el.g}`;
+        const ve = el.g - 10; // 13→3 ... 18→8
+        const np = Math.max(0, ve-2), ns = Math.min(2, ve);
+        const nsStr = `${n}s^${ns}`;
+        const npStr = np>0 ? ` ${n}p^${np}` : '';
+        return nsStr + npStr;
+      }
+      return 'Variable';
+    }
+
+    function drawLewis(el) {
+      const canvas = document.getElementById('lewisCanvas'); const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const cx = canvas.width/2, cy = canvas.height/2;
+
+      // Marco
+      ctx.fillStyle = '#0f1018'; ctx.beginPath(); ctx.roundRect(10,10,canvas.width-20,canvas.height-20,12); ctx.fill();
+      // Símbolo
+      ctx.fillStyle = '#c0caf5'; ctx.font = 'bold 48px Segoe UI, Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(el.sy, cx, cy);
+
+      const ve = valenceElectrons(el);
+      if (ve==null) { // transición/f
+        ctx.font='14px Segoe UI'; ctx.fillStyle='#7aa2f7';
+        ctx.fillText('Valencia: variable', cx, cy+48);
+        return;
+      }
+      // Posiciones de puntos (arriba, derecha, abajo, izquierda)
+      const positions = [
+        {x: cx, y: cy-55},    // arriba
+        {x: cx+55, y: cy},    // derecha
+        {x: cx, y: cy+55},    // abajo
+        {x: cx-55, y: cy}     // izquierda
+      ];
+      // Dibuja primero 1 por lado, luego los pares
+      const dots = Math.min(8, ve);
+      const singles = Math.min(4, dots);
+      const pairs = dots - singles;
+      // singles
+      ctx.fillStyle='#73daca';
+      for (let i=0; i<singles; i++){
+        const p = positions[i];
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2); ctx.fill();
+      }
+      // pairs: añade un segundo punto en los mismos lados en orden
+      for (let i=0; i<pairs; i++){
+        const p = positions[i];
+        ctx.beginPath(); ctx.arc(p.x+10*(i%2===0?1:-1), p.y+10*(i%2?1:-1), 5, 0, Math.PI*2); ctx.fill();
+      }
+      // Texto
+      ctx.font='14px Segoe UI'; ctx.fillStyle='#7aa2f7';
+      ctx.fillText(`VE: ${ve}`, cx, cy+48);
+    }
+
+    function updateInfoPanel() {
+      const el = elementsData.find(e => e.z === state.selectedZ);
+      if(!el) return;
+
+      let groupText = el.g;
+      if (el.z >= 57 && el.z <= 71) groupText = "Lantánido";
+      if (el.z >= 89 && el.z <= 103) groupText = "Actínido";
+
+      document.getElementById('info-name').innerText = el.n;
+      document.getElementById('info-sub').innerText = `Z: ${el.z} | ${el.sy} | G: ${groupText} | P: ${el.p}`;
+
+      document.getElementById('p-aw').innerText = (typeof el.aw==='number' || typeof el.aw==='string') ? `${el.aw}` : 'N/D';
+      document.getElementById('p-en').innerText = el.en > 0 ? el.en.toFixed(2) : 'N/D';
+      document.getElementById('p-ec').innerText = electronConfigAbbrev(el.z) || 'N/D';
+      document.getElementById('p-os').innerText = el.os || 'N/D';
+
+      const ve = valenceElectrons(el);
+      document.getElementById('p-ve').innerText = (ve==null)? 'Variable' : String(ve);
+      document.getElementById('p-vconf').innerHTML = valenceConf(el);
+
+      // Redibuja Bohr y Lewis
+      drawBohr();
+      drawLewis(el);
+    }
+
+    // ====== BOHR (animación) ======
+    const bohrCanvas = document.getElementById('bohrCanvas');
+    const bctx = bohrCanvas.getContext('2d');
+    let _anim = null;
+
+    function getElectronConfigurationBohr(z) {
+      const capacities=[2,8,18,32,32,18,8];
+      let config=[], rem=z;
+      for (let i=0;i<capacities.length;i++){
+        if(rem<=0) break;
+        const put=Math.min(rem, capacities[i]); config.push(put); rem-=put;
+      }
+      return config;
+    }
+
+    function drawBohrFrame() {
+      bctx.clearRect(0,0,bohrCanvas.width,bohrCanvas.height);
+      const cx=bohrCanvas.width/2, cy=bohrCanvas.height/2;
+      const el = elementsData.find(e=>e.z===state.selectedZ) || elementsData[0];
+      // Núcleo
+      bctx.beginPath(); bctx.arc(cx,cy,12,0,Math.PI*2);
+      bctx.fillStyle='#f7768e'; bctx.fill();
+      bctx.fillStyle='#1a1b26'; bctx.font='bold 10px Arial'; bctx.textAlign='center'; bctx.textBaseline='middle';
+      bctx.fillText(el.sy, cx, cy);
+
+      const config=getElectronConfigurationBohr(el.z);
+      const time=Date.now()*0.0005;
+      config.forEach((eCount, idx)=>{
+        const radius=25 + idx*14;
+        bctx.beginPath(); bctx.arc(cx,cy,radius,0,Math.PI*2);
+        bctx.strokeStyle='#3b4261'; bctx.lineWidth=1; bctx.stroke();
+
+        const step=(Math.PI*2)/eCount;
+        const speed=0.5 - idx*0.05;
+        for (let i=0;i<eCount;i++){
+          const ang=(i*step) + (time*speed);
+          const ex=cx + Math.cos(ang)*radius;
+          const ey=cy + Math.sin(ang)*radius;
+          bctx.beginPath(); bctx.arc(ex,ey,2.5,0,Math.PI*2);
+          bctx.fillStyle='#7dcfff'; bctx.fill();
+        }
+      });
+      _anim = requestAnimationFrame(drawBohrFrame);
+    }
+    function drawBohr(){
+      if (_anim) cancelAnimationFrame(_anim);
+      _anim = requestAnimationFrame(drawBohrFrame);
+    }
+    document.addEventListener('visibilitychange', ()=>{
+      if (document.hidden) { if (_anim) cancelAnimationFrame(_anim); _anim=null; }
+      else drawBohr();
+    });
+
+    // ====== INICIALIZACIÓN ======
+    function init() {
+      loadPrefs();
+      renderTable();
+      updateInfoPanel();
+      drawBohr();
+    }
+
+    // Hook global para accesibilidad de teclado (opcional)
+    window.addEventListener('keydown', (e)=>{
+      if (state.mode==='info') {
+        if (e.key==='ArrowRight') { state.selectedZ = Math.min(118, state.selectedZ+1); updateInfoPanel(); renderTable(); if (activeHeatmap) heatmap(activeHeatmap); savePrefs(); }
+        if (e.key==='ArrowLeft')  { state.selectedZ = Math.max(1, state.selectedZ-1); updateInfoPanel(); renderTable(); if (activeHeatmap) heatmap(activeHeatmap); savePrefs(); }
+      }
+    });
+
+    // Clics en tabla llegan a handleElementClick() desde renderTable()
+
+    init();
+  </script>
+</body>
+</html>
